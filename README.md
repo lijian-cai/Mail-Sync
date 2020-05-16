@@ -10,9 +10,9 @@ Create a .env file on root and config your .env file like this:
 
 ```
 // .env file
-USER = yourname@gmail.com
-PASSWORD = 'yourpassword'
-HOST = 'imap.gmail.com'
+EMAIL = yourname@gmail.com
+PASSWORD = yourpassword
+HOST = imap.gmail.com
 ```
 
 and run command:
