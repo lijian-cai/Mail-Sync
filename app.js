@@ -9,15 +9,19 @@ const cheerio = require('cheerio')
 const PRICE_PATTERN = /\$\d+.?\d+/
 
 const imap = new Imap({
-  user: config.user,
-  password: config.password,
-  host: config.host,
+  user: config.imap.user,
+  password: config.imap.password,
+  host: config.imap.host,
   port: 993,
   tls: true,
   tlsOptions: {
-    servername: config.host
+    servername: config.imap.host
   }
 });
+
+const TradeHistory = require('./models/db.js').TradeHistory
+
+let count = 0
 
 function openInbox(cb) {
   imap.openBox('INBOX', false, cb);
@@ -38,7 +42,6 @@ imap.once('ready', function() {
         msg.on('body', function(stream, info) {
           simpleParser(stream)
           .then(parsed => {
-            // console.log(parsed.subject)
             const $ = cheerio.load(parsed.html)
             const p1 = $('td[valign=top]').eq(4).html().split("<br><br>")[1].trim()
             const p2 = $('td[valign=top]').eq(4).html().split("<br><br>")[2].trim()
@@ -48,13 +51,21 @@ imap.once('ready', function() {
             const price = p1.match(PRICE_PATTERN)[0]
             const amount = p2.match(PRICE_PATTERN)[0]
             const date = p2.match(/>.*</gm)[1].match(/(\w| )+/)[0]
-            console.log(action)
-            console.log(quantity)
-            console.log(code)
-            console.log(price)
-            console.log(amount)
-            console.log(date)
-            console.log('-------')
+
+            TradeHistory.create({
+              action: action,
+              quantity: quantity,
+              code: code,
+              price: price,
+              amount: amount,
+              date: date
+            }).then(function(result){
+                  // console.log(result);
+                  count++;
+            }).catch(function(err){
+                  console.log(err.message);
+            });
+
           })
           .catch(err => {
             console.log(`Parse mail error: ${err}`)
@@ -78,6 +89,7 @@ imap.once('error', function(err) {
 });
 
 imap.once('end', function() {
+  console.log(`Total ${count} records`)
   console.log('Connection ended');
 });
 
