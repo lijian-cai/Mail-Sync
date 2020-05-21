@@ -1,5 +1,6 @@
-import config from './config/index.js'
-
+const config = require('./config/index.js')
+const express = require('express')
+// access gmail
 const Imap = require('imap')
 // email parser
 const simpleParser = require('mailparser').simpleParser;
@@ -7,6 +8,8 @@ const simpleParser = require('mailparser').simpleParser;
 const cheerio = require('cheerio')
 
 const PRICE_PATTERN = /\$\d+.?\d+/
+
+const app = express()
 
 const imap = new Imap({
   user: config.imap.user,
@@ -23,14 +26,43 @@ const TradeHistory = require('./models/db.js').TradeHistory
 
 let count = 0
 
+// cron job task
+const cron = require("node-cron");
+
+cron.schedule("40 15 * * *", function() {
+  console.log("---------------------");
+  console.log("Running Cron Job");
+  imap.connect();
+});
+
 function openInbox(cb) {
   imap.openBox('INBOX', false, cb);
 }
 
+function saveData({action, quantity, code, price, amount, date}) {
+  TradeHistory.create({
+    action: action,
+    quantity: quantity,
+    code: code,
+    price: price,
+    amount: amount,
+    date: date
+  }).then(function(result){
+        // console.log(result);
+        console.log(`save ${action} ${quantity} ${code} into database.`)
+        count++;
+  }).catch(function(err){
+        console.log(err.message);
+  });
+}
+
+
+
 imap.once('ready', function() {
   openInbox(function(err, box) {
     if (err) throw err;
-    imap.search(['ALL', ['OR', ['SUBJECT', 'CommSec - Bought'], ['SUBJECT', 'CommSec - Sold']]], (err, results) => {
+    // filter mails
+    imap.search(['UNSEEN', ['OR', ['SUBJECT', 'CommSec - Bought'], ['SUBJECT', 'CommSec - Sold']]], (err, results) => {
       if (err) throw err;
       if (results.length === 0) {
         console.log('nothing to fetch!');
@@ -40,31 +72,23 @@ imap.once('ready', function() {
       f.on('message', function(msg, seqno) {
         console.log('Message #%d', seqno);
         msg.on('body', function(stream, info) {
+          // parse mail
           simpleParser(stream)
           .then(parsed => {
+            console.log(`parsing: ${parsed.subject}`)
             const $ = cheerio.load(parsed.html)
             const p1 = $('td[valign=top]').eq(4).html().split("<br><br>")[1].trim()
             const p2 = $('td[valign=top]').eq(4).html().split("<br><br>")[2].trim()
-            const action = p1.match(/bought|sold/)[0]
-            const quantity = p1.match(/\d* unit/)[0].split(' ')[0]
-            const code = p1.match(/>\w+</)[0].match(/\w+/)[0]
-            const price = p1.match(PRICE_PATTERN)[0]
-            const amount = p2.match(PRICE_PATTERN)[0]
-            const date = p2.match(/>.*</gm)[1].match(/(\w| )+/)[0]
-
-            TradeHistory.create({
-              action: action,
-              quantity: quantity,
-              code: code,
-              price: price,
-              amount: amount,
-              date: date
-            }).then(function(result){
-                  // console.log(result);
-                  count++;
-            }).catch(function(err){
-                  console.log(err.message);
-            });
+            
+            const data = {}
+            data.action = p1.match(/bought|sold/)[0]
+            data.quantity = p1.match(/\d* unit/)[0].split(' ')[0]
+            data.code = p1.match(/>\w+</)[0].match(/\w+/)[0]
+            data.price = p1.match(PRICE_PATTERN)[0]
+            data.amount = p2.match(PRICE_PATTERN)[0]
+            data.date = `${parsed.date.getFullYear()}-${parsed.date.getMonth()+1}-${parsed.date.getDate()}`
+            // save data to postgres db
+            saveData(data)
 
           })
           .catch(err => {
@@ -93,4 +117,10 @@ imap.once('end', function() {
   console.log('Connection ended');
 });
 
-imap.connect();
+app.listen(config.server.port, function (err) {
+	if (err) {
+		console.log(err)
+		return
+	}
+	console.log('Listening at http://localhost:' + config.server.port + '\n')
+})

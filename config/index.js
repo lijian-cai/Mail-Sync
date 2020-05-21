@@ -16,5 +16,8 @@ module.exports = {
     db_user: global.env.DB_USER,
     db_password: '',
     db_dialect: 'postgres'
+  },
+  server: {
+    port: 7666
   }
 };
