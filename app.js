@@ -39,8 +39,9 @@ function openInbox(cb) {
   imap.openBox('INBOX', false, cb);
 }
 
-function saveData({action, quantity, code, price, amount, date}) {
+function saveData({msg_id, action, quantity, code, price, amount, date}) {
   TradeHistory.create({
+    msg_id: msg_id,
     action: action,
     quantity: quantity,
     code: code,
@@ -49,25 +50,32 @@ function saveData({action, quantity, code, price, amount, date}) {
     date: date
   }).then(function(result){
         // console.log(result);
-        console.log(`save ${action} ${quantity} ${code} into database.`)
+        console.log(`save ${msg_id} ${action} ${quantity} ${code} into database.`)
         count++;
   }).catch(function(err){
         console.log(err.message);
   });
 }
 
-
-
 imap.once('ready', function() {
   openInbox(function(err, box) {
     if (err) throw err;
     // filter mails
     imap.search(['UNSEEN', ['OR', ['SUBJECT', 'CommSec - Bought'], ['SUBJECT', 'CommSec - Sold']]], (err, results) => {
-      if (err) throw err;
+      if (err) {
+        console.log(`Search mail error: ${err}`)
+        throw err;
+      }
       if (results.length === 0) {
         console.log('nothing to fetch!');
         return imap.end();
       }
+      imap.addLabels(results, 'trade_history', err => {
+        if (err) {
+          console.log(`Adding label error: ${err}`);
+          throw err;
+        }
+      })
       const f = imap.fetch(results, { markSeen: true, bodies: '' });
       f.on('message', function(msg, seqno) {
         console.log('Message #%d', seqno);
@@ -81,6 +89,7 @@ imap.once('ready', function() {
             const p2 = $('td[valign=top]').eq(4).html().split("<br><br>")[2].trim()
             
             const data = {}
+            data.msg_id = seqno
             data.action = p1.match(/bought|sold/)[0]
             data.quantity = p1.match(/\d* unit/)[0].split(' ')[0]
             data.code = p1.match(/>\w+</)[0].match(/\w+/)[0]
@@ -89,16 +98,15 @@ imap.once('ready', function() {
             data.date = `${parsed.date.getFullYear()}-${parsed.date.getMonth()+1}-${parsed.date.getDate()}`
             // save data to postgres db
             saveData(data)
-
           })
           .catch(err => {
             console.log(`Parse mail error: ${err}`)
           });
-
         });
       });
       f.once('error', function(err) {
         console.log('Fetch error: ' + err);
+        throw err;
       });
       f.once('end', function() {
         console.log('Done fetching all messages!');

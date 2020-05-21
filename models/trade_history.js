@@ -1,6 +1,10 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const trade_history = sequelize.define('trade_history', {
+    msg_id: {
+     type: DataTypes.INTEGER,
+     unique: true
+    },
     action: DataTypes.STRING,
     quantity: DataTypes.INTEGER,
     code: DataTypes.STRING,
@@ -9,9 +13,8 @@ module.exports = (sequelize, DataTypes) => {
     date: DataTypes.STRING
   }, {
     indexes:[
-	    //普通索引,默认BTREE
       {
-        fields: ['code']
+        fields: ['code', 'msg_id']
       },
     ]
   });
