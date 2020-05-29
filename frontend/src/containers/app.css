@@ -1,0 +1,17 @@
+html, body, section, main {
+  height: 100%;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+.ant-layout-header {
+  background-color: #1976d2 !important;
+}
+
+.ant-layout-sider-children,
+.ant-layout-content {
+  background-color: #fff;
+}

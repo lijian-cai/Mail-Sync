@@ -1,0 +1,6 @@
+$defaultSize: 12px !default;
+@function rem($px){
+  @return $px / $defaultSize * 1rem;
+}
+
+$primary-color: #1976d2;

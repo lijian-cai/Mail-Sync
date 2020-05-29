@@ -129,6 +129,6 @@ app.listen(config.server.port, function (err) {
 	if (err) {
 		console.log(err)
 		return
-	}
+  }
 	console.log('Listening at http://localhost:' + config.server.port + '\n')
 })
