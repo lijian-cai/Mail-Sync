@@ -18,6 +18,7 @@ module.exports = {
     db_dialect: 'postgres'
   },
   server: {
-    port: 7666
+    port: 7666,
+    backend_port: 3001
   }
 };

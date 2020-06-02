@@ -7,7 +7,7 @@ const simpleParser = require('mailparser').simpleParser;
 // html parser
 const cheerio = require('cheerio')
 
-const PRICE_PATTERN = /\$\d+.?\d+/
+const PRICE_PATTERN = /\$\d+\,?\d+\.?\d+/
 
 const app = express()
 
@@ -87,7 +87,6 @@ imap.once('ready', function() {
             const $ = cheerio.load(parsed.html)
             const p1 = $('td[valign=top]').eq(4).html().split("<br><br>")[1].trim()
             const p2 = $('td[valign=top]').eq(4).html().split("<br><br>")[2].trim()
-            
             const data = {}
             data.msg_id = seqno
             data.action = p1.match(/bought|sold/)[0]
@@ -96,6 +95,7 @@ imap.once('ready', function() {
             data.price = p1.match(PRICE_PATTERN)[0]
             data.amount = p2.match(PRICE_PATTERN)[0]
             data.date = `${parsed.date.getFullYear()}-${parsed.date.getMonth()+1}-${parsed.date.getDate()}`
+            console.log(data)
             // save data to postgres db
             saveData(data)
           })

@@ -18,5 +18,6 @@ const sequelize = new Sequelize(db_name, db_user, db_password, {
 const TradeHistory = trade_history(sequelize, Sequelize)
 
 module.exports = {
+  sequelize,
   TradeHistory
 }

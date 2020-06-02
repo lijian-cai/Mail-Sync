@@ -6,6 +6,4 @@ import App from './containers/App.jsx'
 
 import '../src/static/reset.css'
 
-// import './common/css/index.styl'
-
 ReactDOM.render(<App></App>, document.getElementById('app'))
