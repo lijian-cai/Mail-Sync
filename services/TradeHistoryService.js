@@ -10,35 +10,59 @@ export default class TradeHistoryService {
     return parseFloat(_.replace(amount_str, /\$|,/g, ''));
   }
 
-  addAmount(num1, num2) {
-    return _.add(num1, num2)
+  add(num1, num2) {
+    return _.round(_.add(num1, num2), 2)
   }
 
-  diffAmount(num1, num2) {
-    return _.subtract(num1, num2)
+  diff(num1, num2) {
+    return _.round(_.subtract(num1, num2), 2)
+  }
+
+  cal_p_l(arr_data) {
+    let p_l = 0
+    let result = {}
+    _.forEach(arr_data, item => item.amount = this.parseAmount(item.amount));
+    _.forEach(arr_data, (value, key) => {
+      if(!(value.code in result)) {
+        result[value.code] = [value.action, value.amount, value.quantity]
+      }else if((value.code in result) && result[value.code].includes(value.action)) {
+        const currentAmount = result[value.code][1]
+        const currentQuantity = result[value.code][2]
+        if(value.action === 'bought') {
+          result[value.code][1] = this.add(currentAmount, value.amount)
+          result[value.code][2] = this.add(currentQuantity, value.quantity)
+        } else if(value.action === 'sold') {
+          result[value.code][1] = this.diff(currentAmount, value.amount)
+          result[value.code][2] = this.diff(currentQuantity, value.quantity)
+        }
+      }else if((value.code in result) && !(result[value.code].includes(value.action))){
+        let currentAmount = result[value.code][1]
+        let currentQuantity = result[value.code][2]
+        if(currentQuantity - value.quantity === 0) {
+          p_l += this.diff(value.amount, currentAmount)
+          p_l = _.round(p_l, 2);
+          delete result[value.code]
+        } else {
+          result[value.code][1] = this.diff(currentAmount, value.amount)
+          currentAmount = result[value.code][1]
+          result[value.code][2] -= value.quantity
+        }
+      }
+    })
+    return p_l
+  }
+
+  getPLData() {
+
   }
 
   getTotal() {
     return this._tradeHistoryModel.findAll({
-      attributes: ['action', 'code', 'amount'],
+      attributes: ['action', 'code', 'amount', 'quantity'],
       raw: true
     }).then(res =>  {
-      let result = {}
       let total = 0
-      _.forEach(res, item => item.amount = this.parseAmount(item.amount));
-      _.forEach(res, (value, key) => {
-        if(!(value.code in result)) {
-          result[value.code] = [value.action, value.amount]
-        }else if((value.code in result) && result[value.code].includes(value.action)) {
-          const currentAmount = result[value.code][1]
-          result[value.code][1] = this.addAmount(currentAmount, value.amount)
-        }else if((value.code in result) && !(result[value.code].includes(value.action))){
-          const currentAmount = result[value.code][1]
-          total += this.diffAmount(value.amount, currentAmount)
-          total = _.round(total, 2);
-          delete result[value.code]
-        }
-      })
+      total = this.cal_p_l(res)
       return total
     }).catch(err => {
       console.log(err)
